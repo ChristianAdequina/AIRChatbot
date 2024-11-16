@@ -96,6 +96,24 @@ def save_interview_to_array(entity, interview_data=None):
     return interview_data
 
 
+def trim_question(question):
+    # List of inquisitve words
+    inquisitive_words = ["What", "Why", "How", "When", "Who", "Where", "Which", "Is", "Are", "Do", "Does", "Can", "Could", "Would", "Should"]
+
+    # Split the question into words
+    words = question.split()
+
+    # Find the index of the first inquisitive word preceded by a "." or ","
+    for idx, word in enumerate(words):
+        # Check if the word is inquisitive and is either preceded by '.' or ',' or is at the start
+        if word.strip("?:,.").capitalize() in inquisitive_words:
+            # Rejoin the question starting from the inquisitive word
+            if idx == 0 or (words[idx - 1].endswith(".") or words[idx - 1].endswith(",")):
+                return " ".join(words[idx:])
+
+    # If no inquisitive word is found, return the original question
+    return question
+
 # ----- INTERVIEW -----
 def start_interview():
     interview_data = []
@@ -130,6 +148,9 @@ def start_interview():
         # Store the user response as the answer for that question
         current_entity.answer = answer
         entity_count += 1
+
+        current_entity.question = trim_question(current_entity.question)
+        print("Trimmed: " + current_entity.question)
 
         # Save entity to the list
         interview_data = save_interview_to_array(current_entity, interview_data)

@@ -1,3 +1,4 @@
+import json
 import random
 import time
 import openai
@@ -6,6 +7,7 @@ import streamlit as st
 openai.api_key = ("sk-proj"
                   "-Qj7wpmQ4zLeHkxtsF_XDQRQD8HCIEozyOJR2FtAPQDqPoetAp9NR0GlBPIzKrN_bic7h7AimBRT3BlbkFJ2FRaW3pH2IUtFY"
                   "-hl4o1TbdZzVs7MjyWmjKrTqHqeMZRI8-f9xEP8TvUQVGKBVKR5gknlWvRUA")
+
 
 # ----- CLASS DEFINITION -----
 class QuestionAnswerPair:
@@ -31,6 +33,7 @@ sample_anchor_questions = [
     "What do you consider your biggest professional strength?"
 ]
 
+
 # ----- HELPER FUNCTIONS -----
 def ask_questions(entity):
     prompt = (f"You are an interviewer, interviewing a first-time applicant. Use the following questions as a guide: "
@@ -45,7 +48,7 @@ def ask_questions(entity):
             {"role": "system", "content": "You are a helpful interviewer."},
             {"role": "user", "content": prompt}
         ],
-        max_tokens=50,
+        max_tokens=100,
         temperature=0.7
     )
 
@@ -76,6 +79,28 @@ def save_interview_to_array(entity, interview_data=None):
         interview_data = []
     interview_data.append(entity.to_dict())
     return interview_data
+
+
+def trim_question(question):
+    # List of inquisitve words
+    inquisitive_words = ["What", "Why", "How", "When", "Who", "Where", "Which", "Is", "Are", "Do", "Does", "Can",
+                         "Could", "Would", "Should"]
+
+    # Split the question into words
+    words = question.split()
+
+    # Find the index of the first inquisitive word preceded by a "." or ","
+    for idx, word in enumerate(words):
+        # Check if the word is inquisitive and is either preceded by '.' or ',' or is at the start
+        if word.strip("?:,.").capitalize() in inquisitive_words:
+            if idx == 0 or (words[idx - 1].endswith(".") or words[idx - 1].endswith(",")):
+                # Rejoin the question starting from the inquisitive word
+                trimmed_question = " ".join(words[idx:])
+                # Capitalise the first letter of the trimmed question
+                return trimmed_question[0].capitalize() + trimmed_question[1:]
+
+    # If no inquisitive word is found, return the original question
+    return question
 
 
 # ----- STREAMLIT APP -----
@@ -122,6 +147,9 @@ def main():
             if st.session_state["entity_count"] > 1:
                 current_entity.previous = st.session_state["previous_entity"]
 
+            # Trim the question
+            current_entity.question = trim_question(current_entity.question)
+
             # Save entity to interview data
             st.session_state["interview_data"] = (
                 save_interview_to_array(current_entity, st.session_state["interview_data"]))
@@ -136,8 +164,13 @@ def main():
 
             if st.session_state["closing_phase"]:
                 st.write("**Interviewer:** Thank you for your time. This concludes the interview.")
-                st.json(st.session_state["interview_data"])
+
+                # Convert interview data to JSON
+                interview_data_json = json.dumps(st.session_state["interview_data"], indent=4)
+                st.write("**Final Interview Data (JSON):**")
+                st.text(interview_data_json)
                 st.stop()
+
 
             # Get next question
             next_question = ask_questions(current_entity)
